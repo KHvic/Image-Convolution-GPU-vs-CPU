@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>TEST of simple GPU/CPU system</title>
+
+</head>
+<body>
+
+<script src="js/gpu.js?nocache"></script>
+<script src="js/decls.js?nocache"></script>
+
+GPU
+  <input id="r1"type="radio" name="GPUCPU" checked="checked" >CPU
+  <input id="r2"type="radio" name="GPUCPU"  >
+
+<input type="button" value="Sobel Disabled" onclick="return toggleSobel(this);" />
+<input type="button" value="Blur Disabled" onclick="return toggleBlur(this);" />
+<input type="button" value="Emboss Disabled" onclick="return toggleEmboss(this);" />
+<input type="button" value="TV Effect Disabled" onclick="return toggleTV(this);" />
+<input type="button" value="Animation Disabled" onclick="return changeAnimation(this);" />
+Numbers of image:
+<select id="numSelect" onchange="return changeNum(this);">
+  <option value="1">1</option>
+  <option value="2">2</option>
+  <option value="3">3</option>
+  <option value="4">4</option>
+</select>
+
+<div id="fps"></div>
+<table><tr><td>
+<img id="1" src="images/image2.jpg" onload="loadImage(this.id)" width="800" height="600" style="display: none;">
+<canvas id="c1" width="800" height="600">
+</td>
+
+  <td><img id="2" src="images/kangaroo.jpg" onload="loadImage(this.id)" width="800" height="600" style="display: none;">
+    <canvas id="c2" width="800" height="600">
+  </td>
+
+</tr>
+</table>
+
+
+<script>
+
+   var loadedImage = false;
+   var arr1 = [];
+   var arr2 = [];
+   var arr3 = [];
+   var arr4 = [];
+   var numPicture=1;
+
+   var filtering = 0;
+   var animation = false;
+   var firsttime = true;
+   var selection = 0;
+
+   //filter variables
+   var sobel = false;
+   var blur = false;
+   var emboss = false;
+   var tv = false;
+
+function changeNum(el){
+  numPicture = el.value;
+  alert(numPicture);
+}
+
+function toggleTV(el) {
+      if ( el.value === "TV Effect Disabled" ) {
+         tv = true;
+         el.value = "TV Effect Enabled";
+      } else {
+         tv = false;
+         el.value = "TV Effect Disabled";
+      }
+   }
+	function toggleSobel( el ) {
+      if ( el.value === "Sobel Disabled" ) {
+         sobel = true;
+         el.value = "Sobel Enabled";
+      } else {
+         sobel = false;
+         el.value = "Sobel Disabled";
+      }
+   }
+   function toggleBlur( el ) {
+      if ( el.value === "Blur Disabled" ) {
+         blur = true;
+         el.value = "Blur Enabled";
+      } else {
+         blur = false;
+         el.value = "Blur Disabled";
+      }
+   }
+   function toggleEmboss( el ) {
+      if ( el.value === "Emboss Disabled" ) {
+         emboss = true;
+         el.value = "Emboss Enabled";
+      } else {
+         emboss = false;
+         el.value = "Emboss Disabled";
+      }
+   }
+
+   function change( el ) {
+
+         selection = e1;
+
+   }
+   function changeFilter( el ) {
+      if ( el.value === "Filtering" ) {
+         filtering = 1;
+         el.value = "No Filter";
+      } else {
+         filtering = 0;
+         el.value = "Filtering";
+      }
+   }
+
+   function changeAnimation( el ) {
+      if ( el.value === "Animation Disabled" ) {
+	animation = true
+	el.value = "Animation Enabled";
+    } else {
+	animation = false;
+	el.value = "Animation Disabled";
+    }
+}
+
+
+function loadImage(n) {
+
+   var canvas = document.getElementById("c"+n);
+   var ctx = canvas.getContext('2d');
+   var imag = document.getElementById(n);
+   ctx.drawImage(imag, 0, 0);
+   //make image invisible
+
+
+   var imageData = ctx.getImageData(0, 0, 800, 600);
+
+//init array
+
+   for (var channel=0; channel<4; channel++) {
+      window["arr"+n].push([]);
+      for (var y=0; y<600; y++) {
+         window["arr"+n][channel].push([]);
+      }
+   }
+
+   var pointer = 0;
+   for (var y=0; y<600; y++) {
+      for (var x=0; x<800; x++) {
+         window["arr"+n][0][600-y-1][x] = imageData.data[pointer++]/256;
+         window["arr"+n][1][600-y-1][x] = imageData.data[pointer++]/256;
+         window["arr"+n][2][600-y-1][x] = imageData.data[pointer++]/256;
+         window["arr"+n][3][600-y-1][x] = imageData.data[pointer++]/256;
+      }
+   }
+   loadedImage = true;
+}
+
+
+
+
+</script>
+<script src="kerneldefs.js?nocache"></script>
+
+
+<script>
+  //make animation function
+   var myKernelAnim = makeAnim("gpu");
+   var myCodeAnim   = makeAnim("cpu");
+   //make filtering function
+   var cpuSobel = makeSobelFilter("cpu");
+   var cpuBlur = makeBlurFilter("cpu");
+   var cpuEmboss = makeEmbossFilter("cpu");
+   var cpuTV = makeTVFilter("cpu");
+
+   var gpuSobel = makeSobelFilter("gpu");
+   var gpuBlur = makeBlurFilter("gpu");
+   var gpuEmboss = makeEmbossFilter("gpu");
+   var gpuTV = makeTVFilter("gpu");
+
+   var myKernelFilter1 = makeBlurFilter("gpu");
+   var myKernelFilter2 = makeBlurFilter("gpu");
+   var myCodeFilter1   = makeBlurFilter("cpu");
+   var myCodeFilter2   = makeBlurFilter("cpu");
+
+   var marquee = makeAnimator("gpu");
+   var orig;
+   var afterload = false;
+   var animIndex = 0;
+   var canvas = myKernelAnim.getCanvas();
+   document.getElementsByTagName('body')[0].appendChild(canvas);
+
+   var f = document.querySelector("#fps");
+   function renderLoop() {
+
+
+     //var i=0;
+      f.innerHTML = fps.getFPS();
+      //cpu mode
+for(var i=1; i<=numPicture;i++)
+      {
+      if (document.getElementById("r2").checked) {
+
+             orig = myCodeAnim(window["arr"+i]);
+             loadedImage=false;
+             afterload = true;
+
+          if (animation) {
+             var C =  marquee(orig,animIndex);
+             animIndex = (animIndex+1)%800;
+          } else {
+             var C = orig;
+          }
+          if (sobel)
+             var C = cpuSobel(C);
+          if(blur)
+          	var C = cpuBlur(C);
+          if(emboss)
+          	var C = cpuBlur(C);
+          	if(tv){
+          		var R = Math.random();
+          		C= cpuTV(C,R);
+          	}
+
+       }
+       //gpu mode
+       else {
+
+             orig = myKernelAnim(window["arr"+i]);
+             loadedImage=false;
+             afterload = true;
+
+          if (animation) {
+             var C =  marquee(orig,animIndex);
+             animIndex = (animIndex+1)%800;
+          } else {
+             var C = orig;
+          }
+
+          if (sobel)
+             var C = gpuSobel(C);
+          if(blur)
+          	var C = gpuBlur(C);
+          if(emboss)
+          	var C = gpuBlur(C);
+ 			if(tv){
+
+          		C= gpuTV(C,Math.random());
+          	}
+      }
+
+      //change to image
+      //var value = Math.random() * (255);
+          //var E = toimg(X,value);
+          toimg(C);
+          if (selection !== 0) {
+             C.delete();
+             X.delete();
+          }
+          if (firsttime) {
+             firsttime = false;
+
+             var cv = document.getElementsByTagName("canvas")[0];
+             toimg(myCodeAnim(arr1));
+             var newCanvas = toimg.getCanvas();
+             cv.parentNode.replaceChild(newCanvas, cv);
+          }
+
+}
+      requestAnimationFrame(renderLoop);
+   }
+   window.onload = renderLoop;
+
+</script>
+
+</body>
+</html>
