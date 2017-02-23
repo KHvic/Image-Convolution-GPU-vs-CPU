@@ -3,13 +3,14 @@
 <html>
 <head>
 
-<title>TEST of simple GPU/CPU system</title>
+<title>CS3211 Project 1</title>
 
 </head>
 <body>
 
 <script src="js/gpu.js?nocache"></script>
 <script src="js/decls.js?nocache"></script>
+<script type="text/javascript" src="js/jsfeat-min.js"></script>
 
 GPU
   <input id="r1"type="radio" name="GPUCPU" checked="checked" >CPU
@@ -18,7 +19,7 @@ GPU
 <input type="button" value="Sobel Disabled" onclick="return toggleSobel(this);" />
 <input type="button" value="Blur Disabled" onclick="return toggleBlur(this);" />
 <input type="button" value="Emboss Disabled" onclick="return toggleEmboss(this);" />
-<input type="button" value="TV Effect Disabled" onclick="return toggleTV(this);" />
+<input type="button" value="Camera Effect Disabled" onclick="return toggleTV(this);" />
 <input type="button" value="Animation Disabled" onclick="return changeAnimation(this);" />
 Numbers of image:
 <select id="numSelect" onchange="return changeNum(this);">
@@ -34,9 +35,7 @@ Numbers of image:
 <canvas id="c1" width="800" height="600">
 </td>
 
-  <td><img id="2" src="images/kangaroo.jpg" onload="loadImage(this.id)" width="800" height="600" style="display: none;">
-    <canvas id="c2" width="800" height="600">
-  </td>
+
 
 </tr>
 </table>
@@ -65,15 +64,16 @@ Numbers of image:
 function changeNum(el){
   numPicture = el.value;
   alert(numPicture);
+  firsttime = true;
 }
 
 function toggleTV(el) {
-      if ( el.value === "TV Effect Disabled" ) {
+      if ( el.value === "Camera Effect Disabled" ) {
          tv = true;
-         el.value = "TV Effect Enabled";
+         el.value = "Camera Effect Enabled";
       } else {
          tv = false;
-         el.value = "TV Effect Disabled";
+         el.value = "Camera Effect Disabled";
       }
    }
 	function toggleSobel( el ) {
@@ -193,10 +193,28 @@ function loadImage(n) {
    var orig;
    var afterload = false;
    var animIndex = 0;
-   var canvas = myKernelAnim.getCanvas();
-   document.getElementsByTagName('body')[0].appendChild(canvas);
+
+
 
    var f = document.querySelector("#fps");
+
+   function cloneCanvas(oldCanvas) {
+
+       //create a new canvas
+       var newCanvas = document.createElement('canvas');
+       var context = newCanvas.getContext('2d');
+
+       //set dimensions
+       newCanvas.width = oldCanvas.width;
+       newCanvas.height = oldCanvas.height;
+
+       //apply the old canvas to the new one
+       context.drawImage(oldCanvas, 0, 0);
+
+       //return the new canvas
+       return newCanvas;
+   }
+
    function renderLoop() {
 
 
@@ -222,9 +240,9 @@ for(var i=1; i<=numPicture;i++)
           if(blur)
           	var C = cpuBlur(C);
           if(emboss)
-          	var C = cpuBlur(C);
+          	var C = cpuEmboss(C);
           	if(tv){
-          		var R = Math.random();
+          		var R = Math.random()*3;
           		C= cpuTV(C,R);
           	}
 
@@ -248,34 +266,38 @@ for(var i=1; i<=numPicture;i++)
           if(blur)
           	var C = gpuBlur(C);
           if(emboss)
-          	var C = gpuBlur(C);
+          	var C = gpuEmboss(C);
  			if(tv){
 
-          		C= gpuTV(C,Math.random());
+          		C= gpuTV(C,Math.random()*3);
           	}
       }
 
       //change to image
-      //var value = Math.random() * (255);
-          //var E = toimg(X,value);
-          toimg(C);
-          if (selection !== 0) {
-             C.delete();
-             X.delete();
-          }
-          if (firsttime) {
-             firsttime = false;
 
-             var cv = document.getElementsByTagName("canvas")[0];
-             toimg(myCodeAnim(arr1));
-             var newCanvas = toimg.getCanvas();
-             cv.parentNode.replaceChild(newCanvas, cv);
-          }
+          window["toimg"+i](C);
+
+
 
 }
+
+if (firsttime) {
+     firsttime = false;
+
+
+
+     var cv1 = document.getElementsByTagName("canvas")[0];
+     var newCanvas1 = toimg1.getCanvas();
+     newCanvas1.id = cv1.id;
+
+     cv1.parentNode.replaceChild(newCanvas1, cv1);
+
+  }
       requestAnimationFrame(renderLoop);
    }
    window.onload = renderLoop;
+
+
 
 </script>
 
