@@ -3,303 +3,348 @@
 <html>
 <head>
 
-<title>CS3211 Project 1</title>
+  <title>CS3211 Project 1</title>
 
 </head>
 <body>
 
-<script src="js/gpu.js?nocache"></script>
-<script src="js/decls.js?nocache"></script>
-<script type="text/javascript" src="js/jsfeat-min.js"></script>
+  <script src="js/gpu.js?nocache"></script>
+  <script src="js/decls.js?nocache"></script>
+  <script type="text/javascript" src="js/jsfeat-min.js"></script>
+  Sequence of filtering function: GrayScale -> Sobel -> Blur -> Sharpen -> Emboss -> Camera ->Animation
+  <hr>
+  An attempt has been made to improve performance of 3x3 blur filtering, but has deproved performances instead.
+  <hr>
+  GPU<input id="r1"type="radio" name="GPUCPU" checked="checked" >
+  CPU<input id="r2"type="radio" name="GPUCPU"  >
+  <hr>
 
-GPU
-  <input id="r1"type="radio" name="GPUCPU" checked="checked" >CPU
-  <input id="r2"type="radio" name="GPUCPU"  >
-
-<input type="button" value="Sobel Disabled" onclick="return toggleSobel(this);" />
-<input type="button" value="Blur Disabled" onclick="return toggleBlur(this);" />
-<input type="button" value="Emboss Disabled" onclick="return toggleEmboss(this);" />
-<input type="button" value="Camera Effect Disabled" onclick="return toggleTV(this);" />
-<input type="button" value="Animation Disabled" onclick="return changeAnimation(this);" />
-Numbers of image:
-<select id="numSelect" onchange="return changeNum(this);">
-  <option value="1">1</option>
-  <option value="2">2</option>
-  <option value="3">3</option>
-  <option value="4">4</option>
-</select>
-
-<div id="fps"></div>
-<table><tr><td>
-<img id="1" src="images/image2.jpg" onload="loadImage(this.id)" width="800" height="600" style="display: none;">
-<canvas id="c1" width="800" height="600">
-</td>
+  <input type="button" value="GrayScale Disabled" onclick="return toggleGrayScale(this);" />
+  <input type="button" value="Sobel Disabled" onclick="return toggleSobel(this);" />
+  <input type="button" value="Blur Disabled" onclick="return toggleBlur(this);" />
+  Choose blur filtering method:
+  <select id="filterMethod" onchange="changeFilter(this);">
+    <option value="0" selected="selected">unoptimized 3x3</option>
+    <option value="1">optimized 3x3</option>
+    <option value="2">unoptimized 5x5</option>
+  </select>
+  <input type="button" value="Sharpen Disabled" onclick="return toggleSharp(this);" />
+  <input type="button" value="Emboss Disabled" onclick="return toggleEmboss(this);" />
+  <input type="button" value="Blink Disabled" onclick="return toggleTV(this);" />
+  <input type="button" value="Animation Disabled" onclick="return changeAnimation(this);" />
 
 
+  <hr>
+  <i>FPS:</i><div id="fps"></div>
+  <table align="center">
+    <tr><td>
+      <img id="1" src="images/image2.jpg" onload="loadImage(this.id)" width="800" height="600" style="display: none;">
+      <canvas id="c1" width="800" height="600">
+      </td></tr>
+    </table>
 
-</tr>
-</table>
+
+    <script>
+
+    var loadedImage = false;
+    var arr1 = [];
+    var auxArray = [];
+    var filtering = 0;
+    var animation = false;
+    var firsttime = true;
+    var selection = 0;
+
+    //filter variables
+    var gray = false;
+    var sharp = false;
+    var sobel = false;
+    var blur = false;
+    var emboss = false;
+    var tv = false;
+    var filterMethod = 0;
 
 
-<script>
-
-   var loadedImage = false;
-   var arr1 = [];
-   var arr2 = [];
-   var arr3 = [];
-   var arr4 = [];
-   var numPicture=1;
-
-   var filtering = 0;
-   var animation = false;
-   var firsttime = true;
-   var selection = 0;
-
-   //filter variables
-   var sobel = false;
-   var blur = false;
-   var emboss = false;
-   var tv = false;
-
-function changeNum(el){
-  numPicture = el.value;
-  alert(numPicture);
-  firsttime = true;
-}
-
-function toggleTV(el) {
-      if ( el.value === "Camera Effect Disabled" ) {
-         tv = true;
-         el.value = "Camera Effect Enabled";
-      } else {
-         tv = false;
-         el.value = "Camera Effect Disabled";
+    var fps = { startTime : 0, frameNumber : 0,
+      getFPS : function() {
+        this.frameNumber++;
+        var d = new Date().getTime(), currentTime = ( d - this.startTime ) / 1000, result = Math.floor( ( (this.frameNumber*10) / currentTime ) );
+        if( currentTime > 1 ) {
+          this.startTime = new Date().getTime();
+          this.frameNumber = 0;
+        }
+        return result/10.0;
       }
-   }
-	function toggleSobel( el ) {
-      if ( el.value === "Sobel Disabled" ) {
-         sobel = true;
-         el.value = "Sobel Enabled";
-      } else {
-         sobel = false;
-         el.value = "Sobel Disabled";
-      }
-   }
-   function toggleBlur( el ) {
-      if ( el.value === "Blur Disabled" ) {
-         blur = true;
-         el.value = "Blur Enabled";
-      } else {
-         blur = false;
-         el.value = "Blur Disabled";
-      }
-   }
-   function toggleEmboss( el ) {
-      if ( el.value === "Emboss Disabled" ) {
-         emboss = true;
-         el.value = "Emboss Enabled";
-      } else {
-         emboss = false;
-         el.value = "Emboss Disabled";
-      }
-   }
+    };
 
-   function change( el ) {
-
-         selection = e1;
-
-   }
-   function changeFilter( el ) {
-      if ( el.value === "Filtering" ) {
-         filtering = 1;
-         el.value = "No Filter";
-      } else {
-         filtering = 0;
-         el.value = "Filtering";
-      }
-   }
-
-   function changeAnimation( el ) {
-      if ( el.value === "Animation Disabled" ) {
-	animation = true
-	el.value = "Animation Enabled";
-    } else {
-	animation = false;
-	el.value = "Animation Disabled";
+    function changeFilter(el){
+      filterMethod = el.value;
     }
-}
+    function toggleGrayScale(el) {
+      if ( el.value === "GrayScale Disabled" ) {
+        gray = true;
+        el.value = "GrayScale Enabled";
+      } else {
+        gray = false;
+        el.value = "GrayScale Disabled";
+      }
+    }
+    function toggleSharp(el) {
+      if ( el.value === "Sharpen Disabled" ) {
+        sharp = true;
+        el.value = "Sharpen Enabled";
+      } else {
+        sharp = false;
+        el.value = "Sharpen Disabled";
+      }
+    }
+    function toggleTV(el) {
+      if ( el.value === "Blink Disabled" ) {
+        tv = true;
+        el.value = "Blink Enabled";
+      } else {
+        tv = false;
+        el.value = "Blink Disabled";
+      }
+    }
+    function toggleSobel( el ) {
+      if ( el.value === "Sobel Disabled" ) {
+        sobel = true;
+        el.value = "Sobel Enabled";
+      } else {
+        sobel = false;
+        el.value = "Sobel Disabled";
+      }
+    }
+    function toggleBlur( el ) {
+      if ( el.value === "Blur Disabled" ) {
+        blur = true;
+        el.value = "Blur Enabled";
+      } else {
+        blur = false;
+        el.value = "Blur Disabled";
+      }
+    }
+    function toggleEmboss( el ) {
+      if ( el.value === "Emboss Disabled" ) {
+        emboss = true;
+        el.value = "Emboss Enabled";
+      } else {
+        emboss = false;
+        el.value = "Emboss Disabled";
+      }
+    }
+
+    function change( el ) {
+
+      selection = e1;
+
+    }
+
+    function changeAnimation( el ) {
+      if ( el.value === "Animation Disabled" ) {
+        animation = true
+        el.value = "Animation Enabled";
+      } else {
+        animation = false;
+        el.value = "Animation Disabled";
+      }
+    }
 
 
-function loadImage(n) {
+    function loadImage(n) {
 
-   var canvas = document.getElementById("c"+n);
-   var ctx = canvas.getContext('2d');
-   var imag = document.getElementById(n);
-   ctx.drawImage(imag, 0, 0);
-   //make image invisible
+      //get canvas and image
+      var canvas = document.getElementById("c"+n);
+      var ctx = canvas.getContext('2d');
+      var imag = document.getElementById(n);
+      //draw image on new canvas
+      ctx.drawImage(imag, 0, 0);
+      //get image data
+      var imageData = ctx.getImageData(0, 0, 800, 600);
+
+      //init array
+
+      for (var channel=0; channel<4; channel++) {
+        window["arr"+n].push([]);
+        for (var y=0; y<600; y++) {
+          window["arr"+n][channel].push([]);
+        }
+      }
+      for (var channel=0; channel<4; channel++) {
+        auxArray.push([]);
+        for (var y=0; y<600; y++) {
+          auxArray[channel].push([]);
+        }
+      }
 
 
-   var imageData = ctx.getImageData(0, 0, 800, 600);
-
-//init array
-
-   for (var channel=0; channel<4; channel++) {
-      window["arr"+n].push([]);
+      var pointer = 0;
       for (var y=0; y<600; y++) {
-         window["arr"+n][channel].push([]);
+        for (var x=0; x<800; x++) {
+          window["arr"+n][0][600-y-1][x] = imageData.data[pointer++]/256;
+          window["arr"+n][1][600-y-1][x] = imageData.data[pointer++]/256;
+          window["arr"+n][2][600-y-1][x] = imageData.data[pointer++]/256;
+          window["arr"+n][3][600-y-1][x] = imageData.data[pointer++]/256;
+        }
       }
-   }
 
-   var pointer = 0;
-   for (var y=0; y<600; y++) {
-      for (var x=0; x<800; x++) {
-         window["arr"+n][0][600-y-1][x] = imageData.data[pointer++]/256;
-         window["arr"+n][1][600-y-1][x] = imageData.data[pointer++]/256;
-         window["arr"+n][2][600-y-1][x] = imageData.data[pointer++]/256;
-         window["arr"+n][3][600-y-1][x] = imageData.data[pointer++]/256;
+      var pointer = 0;
+      for (var y=0; y<600; y++) {
+        for (var x=0; x<800; x++) {
+          auxArray[0][600-y-1][x] = imageData.data[pointer++]/256;
+          auxArray[1][600-y-1][x] = imageData.data[pointer++]/256;
+          auxArray[2][600-y-1][x] = imageData.data[pointer++]/256;
+          auxArray[3][600-y-1][x] = imageData.data[pointer++]/256;
+        }
       }
-   }
-   loadedImage = true;
-}
+
+      loadedImage = true;
+    }
 
 
 
 
-</script>
-<script src="kerneldefs.js?nocache"></script>
+    </script>
+    <script src="kerneldefs.js?nocache"></script>
 
 
-<script>
-  //make animation function
-   var myKernelAnim = makeAnim("gpu");
-   var myCodeAnim   = makeAnim("cpu");
-   //make filtering function
-   var cpuSobel = makeSobelFilter("cpu");
-   var cpuBlur = makeBlurFilter("cpu");
-   var cpuEmboss = makeEmbossFilter("cpu");
-   var cpuTV = makeTVFilter("cpu");
+    <script>
+    //make animation function
+    var myKernelAnim = makeAnim("gpu");
+    var myCodeAnim   = makeAnim("cpu");
+    //make filtering function
+    var cpuGray = makeGrayScalelFilter("cpu");
+    var cpuSharp = makeSharpFilter("cpu");
+    var cpuSobel = makeSobelFilter("cpu");
+    var cpuBlur = makeBlurFilter("cpu");
+    var cpuBlur5x5 = makeBlurFilter5x5("cpu");
+    var cpuEmboss = makeEmbossFilter("cpu");
+    var cpuTV = makeTVFilter("cpu");
+    //optimized
+    var cpuBlur2 = makeBlurFilterOptimized("cpu");
+    var cpuPart2 = makeBlurFilterOptimized_2("cpu");
+    var cpuBlur5x5_2 = makeBlurFilter5x5Optimized("cpu");
 
-   var gpuSobel = makeSobelFilter("gpu");
-   var gpuBlur = makeBlurFilter("gpu");
-   var gpuEmboss = makeEmbossFilter("gpu");
-   var gpuTV = makeTVFilter("gpu");
+    var gpuGray = makeGrayScalelFilter("gpu");
+    var gpuSharp = makeSharpFilter("gpu");
+    var gpuSobel = makeSobelFilter("gpu");
+    var gpuBlur = makeBlurFilter("gpu");
+    var gpuBlur5x5 = makeBlurFilter5x5("cpu");
+    var gpuEmboss = makeEmbossFilter("gpu");
+    var gpuTV = makeTVFilter("gpu");
+    //optimized
+    var gpuBlur2 = makeBlurFilterOptimized("gpu");
+    var gpuPart2 = makeBlurFilterOptimized_2("gpu");
+    //optimized 5x5 not working
+    var gpuBlur5x5_2 = makeBlurFilter5x5Optimized("gpu");
 
-   var myKernelFilter1 = makeBlurFilter("gpu");
-   var myKernelFilter2 = makeBlurFilter("gpu");
-   var myCodeFilter1   = makeBlurFilter("cpu");
-   var myCodeFilter2   = makeBlurFilter("cpu");
-
-   var marquee = makeAnimator("gpu");
-   var orig;
-   var afterload = false;
-   var animIndex = 0;
-
-
-
-   var f = document.querySelector("#fps");
-
-   function cloneCanvas(oldCanvas) {
-
-       //create a new canvas
-       var newCanvas = document.createElement('canvas');
-       var context = newCanvas.getContext('2d');
-
-       //set dimensions
-       newCanvas.width = oldCanvas.width;
-       newCanvas.height = oldCanvas.height;
-
-       //apply the old canvas to the new one
-       context.drawImage(oldCanvas, 0, 0);
-
-       //return the new canvas
-       return newCanvas;
-   }
-
-   function renderLoop() {
+    var marquee2 = makeAnimator("cpu");
+    var marquee = makeAnimator("gpu");
+    var orig;
+    var afterload = false;
+    var animIndex = 0;
 
 
-     //var i=0;
+
+    var f = document.querySelector("#fps");
+
+
+    function renderLoop() {
+      //var i=0;
       f.innerHTML = fps.getFPS();
       //cpu mode
-for(var i=1; i<=numPicture;i++)
-      {
+
       if (document.getElementById("r2").checked) {
-
-             orig = myCodeAnim(window["arr"+i]);
-             loadedImage=false;
-             afterload = true;
-
-          if (animation) {
-             var C =  marquee(orig,animIndex);
-             animIndex = (animIndex+1)%800;
-          } else {
-             var C = orig;
+        if (loadedImage){
+          orig = myCodeAnim(arr1);
+          loadedImage=false;
+        }
+        if (animation) {
+          var C =  marquee(orig,animIndex);
+          animIndex = (animIndex+1)%800;
+        } else {
+          var C = orig;
+        }
+        if(gray)
+        var C = cpuGray(C);
+        if (sobel)
+        var C = cpuSobel(C);
+        if(blur){
+          if(filterMethod ==0)
+          var C = cpuBlur(C);
+          else if(filterMethod == 1){
+            B = cpuBlur2(C);
+            C =cpuPart2(B);
           }
-          if (sobel)
-             var C = cpuSobel(C);
-          if(blur)
-          	var C = cpuBlur(C);
+          else
+          var C=cpuBlur5x5(C);}
+          if(sharp)
+          var C = cpuSharp(C);
           if(emboss)
-          	var C = cpuEmboss(C);
-          	if(tv){
-          		var R = Math.random()*3;
-          		C= cpuTV(C,R);
-          	}
-
-       }
-       //gpu mode
-       else {
-
-             orig = myKernelAnim(window["arr"+i]);
-             loadedImage=false;
-             afterload = true;
-
-          if (animation) {
-             var C =  marquee(orig,animIndex);
-             animIndex = (animIndex+1)%800;
-          } else {
-             var C = orig;
+          var C = cpuEmboss(C);
+          if(tv){
+            var R = Math.random()*2;
+            C= cpuTV(C,R);
           }
 
+        }
+        //gpu mode
+        else {
+          if (loadedImage){
+            orig = myKernelAnim(arr1);
+            loadedImage=false;
+          }
+          if (animation) {
+            var C =  marquee2(orig,animIndex);
+            animIndex = (animIndex+1)%800;
+          } else {
+            var C = orig;
+          }
+          if(gray)
+          var C = gpuGray(C);
           if (sobel)
-             var C = gpuSobel(C);
-          if(blur)
-          	var C = gpuBlur(C);
+          var C = gpuSobel(C);
+          if(blur){
+            if(filterMethod ==0)
+            var C = gpuBlur(C);
+            else if(filterMethod == 1){
+              B = gpuBlur2(C);
+              C =gpuPart2(B);
+              B.delete();
+            }
+            else {
+              var C=gpuBlur5x5(C);
+            }
+          }
+          if(sharp)
+          var C = gpuSharp(C);
           if(emboss)
-          	var C = gpuEmboss(C);
- 			if(tv){
+          var C = gpuEmboss(C);
+          if(tv){
+            C= gpuTV(C,Math.random()*2);
+          }
+        }
 
-          		C= gpuTV(C,Math.random()*3);
-          	}
+        //rendering
+        toimg1(C);
+
+
+        //first time, replace canvas
+        if (firsttime) {
+          firsttime = false;
+          var cv1 = document.getElementsByTagName("canvas")[0];
+          var newCanvas1 = toimg1.getCanvas();
+          newCanvas1.id = cv1.id;
+
+          cv1.parentNode.replaceChild(newCanvas1, cv1);
+        }
+        requestAnimationFrame(renderLoop);
       }
-
-      //change to image
-
-          window["toimg"+i](C);
+      window.onload = renderLoop;
 
 
 
-}
+      </script>
 
-if (firsttime) {
-     firsttime = false;
-
-
-
-     var cv1 = document.getElementsByTagName("canvas")[0];
-     var newCanvas1 = toimg1.getCanvas();
-     newCanvas1.id = cv1.id;
-
-     cv1.parentNode.replaceChild(newCanvas1, cv1);
-
-  }
-      requestAnimationFrame(renderLoop);
-   }
-   window.onload = renderLoop;
-
-
-
-</script>
-
-</body>
-</html>
+    </body>
+    </html>
