@@ -2,15 +2,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-
   <title>CS3211 Project 1</title>
-
 </head>
 <body>
 
   <script src="js/gpu.js?nocache"></script>
-  <script src="js/decls.js?nocache"></script>
-  <script type="text/javascript" src="js/jsfeat-min.js"></script>
   Sequence of filtering function: GrayScale -> Sobel -> Blur -> Sharpen -> Emboss -> Camera ->Animation
   <hr>
   An attempt has been made to improve performance of 3x3 blur filtering, but has deproved performances instead.
@@ -48,7 +44,6 @@
 
     var loadedImage = false;
     var arr1 = [];
-    var auxArray = [];
     var filtering = 0;
     var animation = false;
     var firsttime = true;
@@ -63,7 +58,7 @@
     var tv = false;
     var filterMethod = 0;
 
-
+//calculate fps function
     var fps = { startTime : 0, frameNumber : 0,
       getFPS : function() {
         this.frameNumber++;
@@ -75,10 +70,11 @@
         return result/10.0;
       }
     };
-
+    //change method for blur filtering
     function changeFilter(el){
       filterMethod = el.value;
     }
+    /*start of toggle enabled/disabled filtering function */
     function toggleGrayScale(el) {
       if ( el.value === "GrayScale Disabled" ) {
         gray = true;
@@ -133,13 +129,6 @@
         el.value = "Emboss Disabled";
       }
     }
-
-    function change( el ) {
-
-      selection = e1;
-
-    }
-
     function changeAnimation( el ) {
       if ( el.value === "Animation Disabled" ) {
         animation = true
@@ -149,10 +138,10 @@
         el.value = "Animation Disabled";
       }
     }
+/*end of toggle enabled/disabled filtering function */
 
-
+//load the image an array
     function loadImage(n) {
-
       //get canvas and image
       var canvas = document.getElementById("c"+n);
       var ctx = canvas.getContext('2d');
@@ -162,22 +151,14 @@
       //get image data
       var imageData = ctx.getImageData(0, 0, 800, 600);
 
-      //init array
-
+//initialize array [RGBA][Y][X]
       for (var channel=0; channel<4; channel++) {
         window["arr"+n].push([]);
         for (var y=0; y<600; y++) {
           window["arr"+n][channel].push([]);
         }
       }
-      for (var channel=0; channel<4; channel++) {
-        auxArray.push([]);
-        for (var y=0; y<600; y++) {
-          auxArray[channel].push([]);
-        }
-      }
-
-
+//fill array with converted data
       var pointer = 0;
       for (var y=0; y<600; y++) {
         for (var x=0; x<800; x++) {
@@ -187,32 +168,18 @@
           window["arr"+n][3][600-y-1][x] = imageData.data[pointer++]/256;
         }
       }
-
       var pointer = 0;
-      for (var y=0; y<600; y++) {
-        for (var x=0; x<800; x++) {
-          auxArray[0][600-y-1][x] = imageData.data[pointer++]/256;
-          auxArray[1][600-y-1][x] = imageData.data[pointer++]/256;
-          auxArray[2][600-y-1][x] = imageData.data[pointer++]/256;
-          auxArray[3][600-y-1][x] = imageData.data[pointer++]/256;
-        }
-      }
-
       loadedImage = true;
     }
 
-
-
-
     </script>
     <script src="kerneldefs.js?nocache"></script>
-
-
     <script>
     //make animation function
-    var myKernelAnim = makeAnim("gpu");
+
     var myCodeAnim   = makeAnim("cpu");
     //make filtering function
+    /*filtering function for cpu mode*/
     var cpuGray = makeGrayScalelFilter("cpu");
     var cpuSharp = makeSharpFilter("cpu");
     var cpuSobel = makeSobelFilter("cpu");
@@ -220,11 +187,13 @@
     var cpuBlur5x5 = makeBlurFilter5x5("cpu");
     var cpuEmboss = makeEmbossFilter("cpu");
     var cpuTV = makeTVFilter("cpu");
-    //optimized
+    var marquee2 = makeAnimator("cpu");
+    //cpu optimized version for blur
     var cpuBlur2 = makeBlurFilterOptimized("cpu");
     var cpuPart2 = makeBlurFilterOptimized_2("cpu");
     var cpuBlur5x5_2 = makeBlurFilter5x5Optimized("cpu");
-
+    /*filtering function for gpu mode*/
+    var myKernelAnim = makeAnim("gpu");
     var gpuGray = makeGrayScalelFilter("gpu");
     var gpuSharp = makeSharpFilter("gpu");
     var gpuSobel = makeSobelFilter("gpu");
@@ -232,70 +201,76 @@
     var gpuBlur5x5 = makeBlurFilter5x5("cpu");
     var gpuEmboss = makeEmbossFilter("gpu");
     var gpuTV = makeTVFilter("gpu");
-    //optimized
+    var marquee = makeAnimator("gpu");
+    //cpu optimized version for blur
     var gpuBlur2 = makeBlurFilterOptimized("gpu");
     var gpuPart2 = makeBlurFilterOptimized_2("gpu");
-    //optimized 5x5 not working
     var gpuBlur5x5_2 = makeBlurFilter5x5Optimized("gpu");
 
-    var marquee2 = makeAnimator("cpu");
-    var marquee = makeAnimator("gpu");
+    //for orignal image
     var orig;
-    var afterload = false;
+    //variable for animation effect
     var animIndex = 0;
-
-
-
+    //variable for fps element
     var f = document.querySelector("#fps");
 
-
+    //Rendering Loop
     function renderLoop() {
-      //var i=0;
-      f.innerHTML = fps.getFPS();
-      //cpu mode
 
+      f.innerHTML = fps.getFPS();
+
+      /*if cpu mode selected*/
       if (document.getElementById("r2").checked) {
         if (loadedImage){
           orig = myCodeAnim(arr1);
           loadedImage=false;
         }
+        /*if Animation effect selected*/
         if (animation) {
-          var C =  marquee(orig,animIndex);
+          var C =  marquee2(orig,animIndex);
           animIndex = (animIndex+1)%800;
         } else {
           var C = orig;
         }
+        /*if GrayScale selected*/
         if(gray)
-        var C = cpuGray(C);
+          var C = cpuGray(C);
+        /*if Sobel selected*/
         if (sobel)
         var C = cpuSobel(C);
+        /*if Blur selected*/
         if(blur){
+          //check which blur method to apply
           if(filterMethod ==0)
-          var C = cpuBlur(C);
+            var C = cpuBlur(C);
           else if(filterMethod == 1){
             B = cpuBlur2(C);
             C =cpuPart2(B);
           }
           else
-          var C=cpuBlur5x5(C);}
+            var C=cpuBlur5x5(C);
+          }
+          /*if Sharp selected*/
           if(sharp)
-          var C = cpuSharp(C);
+            var C = cpuSharp(C);
+          /*if Emboss selected*/
           if(emboss)
-          var C = cpuEmboss(C);
+            var C = cpuEmboss(C);
+          /*if Camera effect selected*/
           if(tv){
-            var R = Math.random()*2;
-            C= cpuTV(C,R);
+            C= cpuTV(C,Math.random()*2);
           }
 
         }
-        //gpu mode
+        /*else gpu mode selected*/
+        /*everything here is similar to cpu mode, using gpu filtering function instead*/
         else {
           if (loadedImage){
             orig = myKernelAnim(arr1);
             loadedImage=false;
           }
           if (animation) {
-            var C =  marquee2(orig,animIndex);
+            var C =  marquee(orig,animIndex);
             animIndex = (animIndex+1)%800;
           } else {
             var C = orig;
@@ -325,17 +300,16 @@
           }
         }
 
-        //rendering
+        //render the image to graphical output
         toimg1(C);
 
 
-        //first time, replace canvas
+        //first time rendered, replace canvas element
         if (firsttime) {
           firsttime = false;
           var cv1 = document.getElementsByTagName("canvas")[0];
           var newCanvas1 = toimg1.getCanvas();
           newCanvas1.id = cv1.id;
-
           cv1.parentNode.replaceChild(newCanvas1, cv1);
         }
         requestAnimationFrame(renderLoop);

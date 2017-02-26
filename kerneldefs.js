@@ -1,18 +1,15 @@
-
+//declare gpu
 var gpu = new GPU();
-
 function sqr(x) {
   return x*x;
 }
-
 function dist(x1,y1,x2,y2) {
   return Math.sqrt( sqr(x2-x1)+sqr(y2-y1) );
 }
-
 gpu.addFunction(sqr);
 gpu.addFunction(dist);
 
-//unchange
+
 function makeAnim(mode) {
   var opt = {
     dimensions: [800, 600, 4],
