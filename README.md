@@ -1,1 +1,1 @@
-# Image Convolution using GPU.js
+# CS3211Project1
