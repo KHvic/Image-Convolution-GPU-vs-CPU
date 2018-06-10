@@ -7,7 +7,7 @@ Frame Rate per Second(FPS) is measured.
 
 ## Built With
 
-* GPU.js - https://github.com/gpujs/gpu.js?utm_source=recordnotfound.com
+[GPU.js](https://github.com/gpujs/gpu.js)
 
 ## Demo
 
