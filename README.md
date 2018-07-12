@@ -11,4 +11,4 @@ Frame Rate per Second(FPS) is measured.
 
 ## Demo
 
-[Demo](https://khvic.github.io/Image-Convolution-GPU.js/)
+[Demo](https://khvic.github.io/Image-Convolution-GPU-vs-CPU/)
